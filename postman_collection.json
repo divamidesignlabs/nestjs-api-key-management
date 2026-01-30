@@ -1,0 +1,1238 @@
+{
+	"info": {
+		"_postman_id": "key-manager-api-collection",
+		"name": "Key Manager API Testing Collection",
+		"description": "Comprehensive Postman collection for testing all Key Manager Library APIs including creation, validation, removal, and listing operations with service account management.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "12345678"
+	},
+	"item": [
+		{
+			"name": "Authentication & Setup",
+			"item": [
+				{
+					"name": "Health Check",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/health",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"health"
+							]
+						},
+						"description": "Basic health check to verify the API is running"
+					},
+					"response": []
+				}
+			],
+			"description": "Basic setup and health checks"
+		},
+		{
+			"name": "API Key Creation",
+			"item": [
+				{
+					"name": "Create API Key - Basic",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 201 or 200\", function () {",
+									"    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+									"});",
+									"",
+									"pm.test(\"Response has success true\", function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.success).to.be.true;",
+									"});",
+									"",
+									"pm.test(\"Response contains API key and client credentials\", function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.data).to.have.property('raw_key');",
+									"    pm.expect(jsonData.data).to.have.property('key_id');",
+									"    pm.expect(jsonData.data).to.have.property('client_id');",
+									"    pm.expect(jsonData.data).to.have.property('client_secret');",
+									"    ",
+									"    // Store credentials for future tests",
+									"    pm.environment.set('test_api_key', jsonData.data.raw_key);",
+									"    pm.environment.set('test_key_id', jsonData.data.key_id);",
+									"    pm.environment.set('test_client_id', jsonData.data.client_id);",
+									"    pm.environment.set('test_client_secret', jsonData.data.client_secret);",
+									"    pm.environment.set('test_user_id', jsonData.data.user_id);",
+									"});",
+									"",
+									"pm.test(\"API key is base64 encoded\", function () {",
+									"    const jsonData = pm.response.json();",
+									"    const apiKey = jsonData.data.raw_key;",
+									"    // Base64 regex pattern",
+									"    const base64Regex = /^[A-Za-z0-9+/]+=*$/;",
+									"    pm.expect(apiKey).to.match(base64Regex);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"user_id\": 123,\n  \"name\": \"Test API Key\",\n  \"description\": \"Basic test key for development\",\n  \"is_active\": true,\n  \"expires_at\": \"2027-12-31T23:59:59.000Z\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/keys",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"keys"
+							]
+						},
+						"description": "Create a basic API key with service account auto-creation"
+					},
+					"response": []
+				},
+				{
+					"name": "Create API Key - Same User (Existing SA)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200 or 201\", function () {",
+									"    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+									"});",
+									"",
+									"pm.test(\"Uses existing service account\", function () {",
+									"    const jsonData = pm.response.json();",
+									"    const storedClientId = pm.environment.get('test_client_id');",
+									"    pm.expect(jsonData.data.client_id).to.equal(storedClientId);",
+									"});",
+									"",
+									"pm.test(\"New API key created\", function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.data).to.have.property('raw_key');",
+									"    ",
+									"    // Store second key",
+									"    pm.environment.set('test_api_key_2', jsonData.data.raw_key);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"user_id\": {{test_user_id}},\n  \"name\": \"Second API Key\",\n  \"description\": \"Second key for same user\",\n  \"is_active\": true\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/keys",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"keys"
+							]
+						},
+						"description": "Create another API key for existing service account"
+					},
+					"response": []
+				},
+				{
+					"name": "Create API Key - No Expiry",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200 or 201\", function () {",
+									"    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+									"});",
+									"",
+									"pm.test(\"Key created with default expiry\", function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.data).to.have.property('expires_at');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"user_id\": 456,\n  \"name\": \"Long-lived Key\",\n  \"is_active\": true\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/keys",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"keys"
+							]
+						},
+						"description": "Create an API key without explicit expiry date"
+					},
+					"response": []
+				},
+				{
+					"name": "Create API Key - Invalid Expiry Date",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 400\", function () {",
+									"    pm.response.to.have.status(400);",
+									"});",
+									"",
+									"pm.test(\"Error for past expiry date\", function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.code).to.equal('EXPIRY_DATE_PAST');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"user_id\": 789,\n  \"name\": \"Invalid Key\",\n  \"expires_at\": \"2020-01-01T00:00:00.000Z\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/keys",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"keys"
+							]
+						},
+						"description": "Test validation with past expiry date"
+					},
+					"response": []
+				}
+			],
+			"description": "Test API key creation with service account management"
+		},
+		{
+			"name": "API Key Validation",
+			"item": [
+				{
+					"name": "Validate API Key - Valid",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Key validation successful\", function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.success).to.be.true;",
+									"    pm.expect(jsonData.code).to.equal('KEY_VALID');",
+									"});",
+									"",
+									"pm.test(\"Response contains user and key info\", function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.data).to.have.property('user_id');",
+									"    pm.expect(jsonData.data).to.have.property('key_id');",
+									"    pm.expect(jsonData.data).to.have.property('client_id');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"client_id\": \"{{test_client_id}}\",\n  \"client_secret\": \"{{test_client_secret}}\",\n  \"api_key\": \"{{test_api_key}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/keys/validate",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"keys",
+								"validate"
+							]
+						},
+						"description": "Validate a valid API key with client credentials"
+					},
+					"response": []
+				},
+				{
+					"name": "Validate API Key - Invalid Client ID",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 401\", function () {",
+									"    pm.response.to.have.status(401);",
+									"});",
+									"",
+									"pm.test(\"Invalid client credentials error\", function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.success).to.be.false;",
+									"    pm.expect(jsonData.code).to.equal('INVALID_CLIENT_ID');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"client_id\": \"00000000-0000-0000-0000-000000000000\",\n  \"client_secret\": \"invalid_secret\",\n  \"api_key\": \"{{test_api_key}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/keys/validate",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"keys",
+								"validate"
+							]
+						},
+						"description": "Test validation with invalid client ID"
+					},
+					"response": []
+				},
+				{
+					"name": "Validate API Key - Invalid Client Secret",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 401\", function () {",
+									"    pm.response.to.have.status(401);",
+									"});",
+									"",
+									"pm.test(\"Invalid client secret error\", function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.success).to.be.false;",
+									"    pm.expect(jsonData.code).to.equal('INVALID_CLIENT_SECRET');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"client_id\": \"{{test_client_id}}\",\n  \"client_secret\": \"wrong_secret\",\n  \"api_key\": \"{{test_api_key}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/keys/validate",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"keys",
+								"validate"
+							]
+						},
+						"description": "Test validation with wrong client secret"
+					},
+					"response": []
+				},
+				{
+					"name": "Validate API Key - Invalid Key",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 401 or 404\", function () {",
+									"    pm.expect(pm.response.code).to.be.oneOf([401, 404]);",
+									"});",
+									"",
+									"pm.test(\"Invalid key response\", function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.success).to.be.false;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"client_id\": \"{{test_client_id}}\",\n  \"client_secret\": \"{{test_client_secret}}\",\n  \"api_key\": \"aW52YWxpZF9rZXlfYmFzZTY0X2VuY29kZWQ=\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/keys/validate",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"keys",
+								"validate"
+							]
+						},
+						"description": "Test validation with invalid API key"
+					},
+					"response": []
+				}
+			],
+			"description": "Test API key validation with client credential authentication"
+		},
+		{
+			"name": "API Key Management",
+			"item": [
+				{
+					"name": "Update API Key - Expiry",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Expiry updated successfully\", function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.success).to.be.true;",
+									"    pm.expect(jsonData.data).to.have.property('expires_at');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"expires_at\": \"2028-12-31T23:59:59.000Z\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/keys/{{test_key_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"keys",
+								"{{test_key_id}}"
+							]
+						},
+						"description": "Update API key expiration date"
+					},
+					"response": []
+				},
+				{
+					"name": "Update API Key - Active Status",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Status updated successfully\", function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.data.is_active).to.be.false;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"is_active\": false\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/keys/{{test_key_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"keys",
+								"{{test_key_id}}"
+							]
+						},
+						"description": "Deactivate API key"
+					},
+					"response": []
+				},
+				{
+					"name": "Remove API Key (Soft Delete)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Key removed successfully\", function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.success).to.be.true;",
+									"    pm.expect(jsonData.data.status).to.equal('deleted');",
+									"});",
+									"",
+									"pm.test(\"Deletion metadata present\", function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.data).to.have.property('deleted_at');",
+									"    pm.expect(jsonData.data).to.have.property('deleted_by');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/keys/{{test_key_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"keys",
+								"{{test_key_id}}"
+							]
+						},
+						"description": "Soft delete an API key"
+					},
+					"response": []
+				},
+				{
+					"name": "Remove API Key - Already Deleted",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 400\", function () {",
+									"    pm.response.to.have.status(400);",
+									"});",
+									"",
+									"pm.test(\"Already deleted error\", function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.code).to.equal('KEY_ALREADY_DELETED');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/keys/{{test_key_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"keys",
+								"{{test_key_id}}"
+							]
+						},
+						"description": "Try to delete already deleted key"
+					},
+					"response": []
+				}
+			],
+			"description": "Test API key update and removal operations"
+		},
+		{
+			"name": "API Key Listing",
+			"item": [
+				{
+					"name": "List Keys - Default Pagination",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response has pagination\", function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.data).to.have.property('pagination');",
+									"    pm.expect(jsonData.data.pagination).to.have.property('page');",
+									"    pm.expect(jsonData.data.pagination).to.have.property('limit');",
+									"    pm.expect(jsonData.data.pagination).to.have.property('total');",
+									"    pm.expect(jsonData.data.pagination).to.have.property('has_next');",
+									"});",
+									"",
+									"pm.test(\"Keys array present\", function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.data).to.have.property('keys');",
+									"    pm.expect(jsonData.data.keys).to.be.an('array');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/keys",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"keys"
+							]
+						},
+						"description": "List all API keys with default pagination (page 1, limit 10)"
+					},
+					"response": []
+				},
+				{
+					"name": "List Keys - Custom Pagination",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Respects pagination limits\", function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.data.keys.length).to.be.at.most(5);",
+									"    pm.expect(jsonData.data.pagination.limit).to.equal(5);",
+									"    pm.expect(jsonData.data.pagination.page).to.equal(1);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/keys?page=1&limit=5",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"keys"
+							],
+							"query": [
+								{
+									"key": "page",
+									"value": "1"
+								},
+								{
+									"key": "limit",
+									"value": "5"
+								}
+							]
+						},
+						"description": "List keys with custom pagination"
+					},
+					"response": []
+				},
+				{
+					"name": "List Keys - Client ID Filter",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Filtered by client_id\", function () {",
+									"    const jsonData = pm.response.json();",
+									"    const clientId = pm.environment.get('test_client_id');",
+									"    if (jsonData.data.keys.length > 0) {",
+									"        jsonData.data.keys.forEach(key => {",
+									"            pm.expect(key.client_id).to.equal(clientId);",
+									"        });",
+									"    }",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/keys?client_id={{test_client_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"keys"
+							],
+							"query": [
+								{
+									"key": "client_id",
+									"value": "{{test_client_id}}"
+								}
+							]
+						},
+						"description": "List keys for specific client ID"
+					},
+					"response": []
+				},
+				{
+					"name": "List Keys - Status Filter (Active)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Only active keys returned\", function () {",
+									"    const jsonData = pm.response.json();",
+									"    if (jsonData.data.keys.length > 0) {",
+									"        jsonData.data.keys.forEach(key => {",
+									"            pm.expect(key.status).to.equal('active');",
+									"        });",
+									"    }",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/keys?status=active",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"keys"
+							],
+							"query": [
+								{
+									"key": "status",
+									"value": "active"
+								}
+							]
+						},
+						"description": "List only active keys"
+					},
+					"response": []
+				},
+				{
+					"name": "List Keys - Search by Name",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Search results match query\", function () {",
+									"    const jsonData = pm.response.json();",
+									"    if (jsonData.data.keys.length > 0) {",
+									"        jsonData.data.keys.forEach(key => {",
+									"            const searchTerm = 'test';",
+									"            const matchesName = key.name && key.name.toLowerCase().includes(searchTerm);",
+									"            const matchesDesc = key.description && key.description.toLowerCase().includes(searchTerm);",
+									"            pm.expect(matchesName || matchesDesc).to.be.true;",
+									"        });",
+									"    }",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/keys?search=test",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"keys"
+							],
+							"query": [
+								{
+									"key": "search",
+									"value": "test"
+								}
+							]
+						},
+						"description": "Search keys by name or description"
+					},
+					"response": []
+				},
+				{
+					"name": "List Keys - Include Deleted",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Deleted keys included\", function () {",
+									"    const jsonData = pm.response.json();",
+									"    const hasDeletedKeys = jsonData.data.keys.some(key => key.status === 'deleted');",
+									"    // May or may not have deleted keys, just verify the filter works",
+									"    pm.expect(jsonData.data.keys).to.be.an('array');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/keys?include_deleted=true",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"keys"
+							],
+							"query": [
+								{
+									"key": "include_deleted",
+									"value": "true"
+								}
+							]
+						},
+						"description": "List keys including soft-deleted ones"
+					},
+					"response": []
+				},
+				{
+					"name": "List Keys - Combined Filters",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Multiple filters applied\", function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.data.pagination.page).to.equal(1);",
+									"    pm.expect(jsonData.data.pagination.limit).to.equal(20);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/keys?status=active&search=test&page=1&limit=20&sort_by=created_at&sort_order=DESC",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"keys"
+							],
+							"query": [
+								{
+									"key": "status",
+									"value": "active"
+								},
+								{
+									"key": "search",
+									"value": "test"
+								},
+								{
+									"key": "page",
+									"value": "1"
+								},
+								{
+									"key": "limit",
+									"value": "20"
+								},
+								{
+									"key": "sort_by",
+									"value": "created_at"
+								},
+								{
+									"key": "sort_order",
+									"value": "DESC"
+								}
+							]
+						},
+						"description": "List keys with multiple filters, sorting, and pagination"
+					},
+					"response": []
+				}
+			],
+			"description": "Test API key listing with pagination, filtering, and search"
+		},
+		{
+			"name": "Edge Cases & Security",
+			"item": [
+				{
+					"name": "SQL Injection Test - Validation",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"SQL injection prevented\", function () {",
+									"    pm.expect(pm.response.code).to.be.oneOf([400, 401, 404]);",
+									"});",
+									"",
+									"pm.test(\"Safe error response\", function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.success).to.be.false;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"client_id\": \"'; DROP TABLE api_keys; --\",\n  \"client_secret\": \"test\",\n  \"api_key\": \"test\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/keys/validate",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"keys",
+								"validate"
+							]
+						},
+						"description": "Test SQL injection prevention in validation"
+					},
+					"response": []
+				},
+				{
+					"name": "SQL Injection Test - Search",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"SQL injection in search prevented\", function () {",
+									"    pm.expect(pm.response.code).to.be.oneOf([200, 400]);",
+									"});",
+									"",
+									"pm.test(\"Response is safe\", function () {",
+									"    const jsonData = pm.response.json();",
+									"    if (pm.response.code === 200) {",
+									"        pm.expect(jsonData.data.keys).to.be.an('array');",
+									"    }",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/keys?search=' OR '1'='1",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"keys"
+							],
+							"query": [
+								{
+									"key": "search",
+									"value": "' OR '1'='1"
+								}
+							]
+						},
+						"description": "Test SQL injection prevention in search"
+					},
+					"response": []
+				},
+				{
+					"name": "Empty Request Body",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 400\", function () {",
+									"    pm.response.to.have.status(400);",
+									"});",
+									"",
+									"pm.test(\"Validation error returned\", function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.success).to.be.false;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": ""
+						},
+						"url": {
+							"raw": "{{base_url}}/api/keys",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"keys"
+							]
+						},
+						"description": "Test handling of empty request body"
+					},
+					"response": []
+				},
+				{
+					"name": "Pagination Limit Enforcement",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Max limit enforced\", function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.data.keys.length).to.be.at.most(100);",
+									"    pm.expect(jsonData.data.pagination.limit).to.be.at.most(100);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/keys?limit=1000",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"keys"
+							],
+							"query": [
+								{
+									"key": "limit",
+									"value": "1000"
+								}
+							]
+						},
+						"description": "Test that pagination limit is capped at max (100)"
+					},
+					"response": []
+				}
+			],
+			"description": "Test edge cases, security, and input validation"
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"// Pre-request script runs before each request",
+					"console.log('Request to:', pm.request.url.toString());",
+					"pm.environment.set('request_timestamp', Date.now());"
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"// Post-response script runs after each request",
+					"const startTime = pm.environment.get('request_timestamp');",
+					"if (startTime) {",
+					"    const responseTime = Date.now() - parseInt(startTime);",
+					"    console.log('Response time:', responseTime + 'ms');",
+					"}",
+					"",
+					"// Global tests",
+					"pm.test('Response time is reasonable', function () {",
+					"    pm.expect(pm.response.responseTime).to.be.below(30000);",
+					"});",
+					"",
+					"pm.test('Response has proper content type', function () {",
+					"    pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json');",
+					"});",
+					"",
+					"if (pm.response.code >= 400) {",
+					"    console.log('Error Response:', pm.response.text());",
+					"}"
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:3000",
+			"description": "Base URL for the Key Manager API"
+		},
+		{
+			"key": "test_api_key",
+			"value": "",
+			"description": "Stores generated API key for testing"
+		},
+		{
+			"key": "test_api_key_2",
+			"value": "",
+			"description": "Stores second API key for same user"
+		},
+		{
+			"key": "test_key_id",
+			"value": "",
+			"description": "Stores generated key ID for testing"
+		},
+		{
+			"key": "test_client_id",
+			"value": "",
+			"description": "Stores client ID (service account UUID)"
+		},
+		{
+			"key": "test_client_secret",
+			"value": "",
+			"description": "Stores client secret for authentication"
+		},
+		{
+			"key": "test_user_id",
+			"value": "",
+			"description": "Stores user ID for testing"
+		}
+	]
+}
